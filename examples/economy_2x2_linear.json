@@ -1,0 +1,14 @@
+{
+    "type": "linear",
+    "description": "2x2 economy from equilibrium.m — two labour classes, two goods",
+    "T": [
+        [1.0, 0.0],
+        [1.0, 1.0]
+    ],
+    "U": [
+        [1.0, 0.8],
+        [0.8, 1.0]
+    ],
+    "Y": [2.0, 4.0],
+    "p_init": [1.0, 1.0]
+}

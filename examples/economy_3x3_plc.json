@@ -1,0 +1,26 @@
+{
+    "type": "plc",
+    "description": "3-class x 3-good PLC economy — NOTE: tatonnement prices converge but PLC solver allocation precision is limited for some 3x3 economies. The 2x2 PLC example demonstrates cleaner PLC results.",
+    "T": [
+        [2.00, 0.20, 0.10],
+        [0.10, 1.50, 0.20],
+        [0.05, 0.10, 1.00]
+    ],
+    "U1": [
+        [0.80, 0.20, 0.10],
+        [0.15, 0.75, 0.25],
+        [0.10, 0.20, 0.85]
+    ],
+    "U2": [
+        [0.48, 0.12, 0.06],
+        [0.09, 0.45, 0.15],
+        [0.06, 0.12, 0.51]
+    ],
+    "L1": [
+        [1.0, 0.5, 0.5],
+        [0.5, 1.0, 0.5],
+        [0.5, 0.5, 1.5]
+    ],
+    "Y": [8.0, 6.0, 5.0],
+    "p_init": [1.0, 1.0, 1.0]
+}

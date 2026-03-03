@@ -1,0 +1,10 @@
+fun= @(x) -[0.6 0.8 0.55 0.2]*x ; % the optimization function
+q0=repmat(0,4,1);
+A=eye(4,4) ;
+b1 = [5 12.5;10 25];
+Aeq=[5 2 5 2];
+beq=50;
+lb=zeros(4,1);
+ub=[];
+options=optimoptions('fmincon', 'Display','OFF');
+q = fmincon(fun,q0,A,b1,Aeq,beq,lb,ub,[]) % output:production
