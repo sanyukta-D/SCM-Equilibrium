@@ -25,14 +25,17 @@ Quick start
 from .production       import solve_production, wages_from_prices
 from .fisher_market    import solve_fisher
 from .fisher_market_plc import solve_fisher_plc, solve_fisher_plc_3d
+from .fisher_market_splc import solve_fisher_splc
 
 # Single SCM round
 from .scm_round     import scm_round
 from .scm_round_plc import scm_round_plc
+from .scm_round_splc import scm_round_splc
 
 # Tatonnement equilibrium computation
 from .equilibrium     import compute_equilibrium, print_equilibrium
 from .equilibrium_plc import compute_equilibrium_plc, print_equilibrium_plc
+from .equilibrium_splc import compute_equilibrium_splc, print_equilibrium_splc
 
 # Equilibrium verification
 from .verify import check_scm_equilibrium, check_plc_equilibrium
