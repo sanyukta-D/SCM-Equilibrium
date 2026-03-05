@@ -27,3 +27,5 @@ pytest-cache-files-*/
 
 # Jupyter
 .ipynb_checkpoints/
+
+docs/
