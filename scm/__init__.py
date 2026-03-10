@@ -40,4 +40,7 @@ from .equilibrium_splc import compute_equilibrium_splc, print_equilibrium_splc
 # Equilibrium verification
 from .verify import check_scm_equilibrium, check_plc_equilibrium
 
-__version__ = "0.1.0"
+# Robust solvers (Task 2: alternative methods)
+from .solvers import solve_robust, solve_damped, solve_broyden
+
+__version__ = "0.2.0"

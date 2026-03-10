@@ -159,6 +159,14 @@ result = compute_equilibrium_splc(
 | `compute_equilibrium_plc(T, U1, U2, L1, Y, p_init, ...)` | Tatonnement loop (2-segment PLC) |
 | `compute_equilibrium_splc(T, U, L, Y, p_init, ...)` | Tatonnement loop (S-segment SPLC) with damping + normalisation support |
 
+### Robust solvers (v0.2.0)
+
+| Function | Description |
+|----------|-------------|
+| `solve_robust(T, U, Y, p_init)` | **Recommended.** Cascading solver: tries standard → Broyden → damped, returns best result. Solves 33/35 benchmark economies to fp_err < 1e-4. |
+| `solve_damped(T, U, Y, p_init, ...)` | Damped tatonnement with alpha sweep (0.3, 0.1, 0.05) and price normalisation. Most reliable single method. |
+| `solve_broyden(T, U, Y, p_init, ...)` | Broyden's quasi-Newton on F(p) = G(p) − p = 0 via `scipy.optimize.root`. Fast, handles many cycling cases. |
+
 ### Verification
 
 | Function | Description |
@@ -181,6 +189,7 @@ scm-equilibrium/
     equilibrium.py           Tatonnement iterator (linear)
     equilibrium_plc.py       Tatonnement iterator (2-segment PLC)
     equilibrium_splc.py      Tatonnement iterator (SPLC, with damping)
+    solvers.py               Robust solvers: damped, Broyden, cascading (v0.2)
     verify.py                Equilibrium condition checker (10/11 conditions)
   main.py                  Quick-start: define economy in code
   cli.py                   CLI: load economy from JSON

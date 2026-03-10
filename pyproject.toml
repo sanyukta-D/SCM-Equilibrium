@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scm-equilibrium"
-version = "0.1.0"
+version = "0.2.0"
 description = "SM equilibrium computation for the Simple Closed Model (Deshpande & Sohoni, 2021)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -12,6 +12,7 @@ license = {text = "MIT"}
 dependencies = [
     "numpy>=1.21",
     "cvxpy>=1.3",
+    "scipy>=1.7",
 ]
 
 [project.optional-dependencies]
