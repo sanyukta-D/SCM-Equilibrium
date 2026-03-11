@@ -43,4 +43,21 @@ from .verify import check_scm_equilibrium, check_plc_equilibrium
 # Robust solvers (Task 2: alternative methods)
 from .solvers import solve_robust, solve_damped, solve_broyden
 
-__version__ = "0.2.0"
+# Consumer Choice Game (Task 3: strategic preference expression)
+from .ccg import (ccg_payoff, ccg_payoff_detailed, ccg_sweep, ccg_gradient,
+                  ccg_zone_map, extract_forest, zone_label)
+
+# Nash equilibrium finder
+from .nash import best_response_direction, nash_iteration, find_nash_candidates
+
+# Visualization (optional — requires matplotlib)
+try:
+    from .visualize import (
+        plot_zone_map, plot_zone_map_with_payoff,
+        plot_payoff_trajectory, plot_wage_trajectory, plot_price_trajectory,
+        plot_allocation_pattern, plot_forest_diagram, plot_gradient_field,
+    )
+except ImportError:
+    pass  # matplotlib not installed
+
+__version__ = "0.4.0"

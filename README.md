@@ -1,6 +1,6 @@
 # scm-equilibrium
 
-Compute SM equilibria for the **Simple Closed Model** (SCM) from [Deshpande & Sohoni (2021)](https://arxiv.org/abs/2109.09248). Supports linear, 2-segment PLC, and general S-segment SPLC utilities.
+Compute SM equilibria for the **Simple Closed Model** (SCM) from [Deshpande & Sohoni (2021)](https://arxiv.org/abs/2109.09248). Supports linear, 2-segment PLC, and general S-segment SPLC utilities. Includes the **Consumer Choice Game** (CCG) framework for analysing strategic preference expression, zone decomposition, Nash equilibrium search, and visualization.
 
 ## Quick start
 
@@ -8,7 +8,8 @@ Compute SM equilibria for the **Simple Closed Model** (SCM) from [Deshpande & So
 pip install -r requirements.txt
 python main.py                                        # edit economy in code
 python cli.py examples/economy_2x2_linear.json        # or load from JSON
-python examples/three_piece_plc.py                    # 3-piece PLC example
+python examples/ccg_soap_market.py                    # CCG analysis (soap market from paper)
+python examples/ccg_analysis_template.py              # CCG template (modify for your economy)
 ```
 
 ## What is the SCM?
@@ -40,13 +41,11 @@ A price vector **p** is an **SM equilibrium** if applying one full SCM round ret
 9. **Fixed point:** one more SCM round leaves prices unchanged
 10. **Production optimality:** firms maximize profit at these prices
 
-For PLC/SPLC utilities, additional segment capacity constraints are checked.
-
 ### Tatonnement (the dynamic process)
 
 **Tatonnement** iterates the SCM map `p_{t+1} = SCM_round(p_t)` hoping to converge to an SM equilibrium. It may converge (finding an exact equilibrium), cycle (finding an approximate one), or diverge.
 
-**Damped tatonnement** uses `p_{t+1} = (1−α)p_t + α·G(p_t)` with optional price normalisation, which stabilises cycling and diverging economies by reducing the effective step size.
+**Damped tatonnement** uses `p_{t+1} = (1-α)p_t + α·G(p_t)` with optional price normalisation, which stabilises cycling and diverging economies.
 
 ## One SCM round
 
@@ -59,6 +58,89 @@ prices p  →  Production LP: max p·q s.t. Tq ≤ Y  →  quantities q, active 
           →  New prices p'  (from market-clearing dual variables)
 ```
 
+## Consumer Choice Game (CCG)
+
+The CCG models **strategic preference expression** in the SCM. Each labour class (player) has true utilities `U_true` but can express different preferences `U_expressed`. The economy runs at equilibrium under `U_expressed`, and each player's payoff is evaluated using `U_true` on the resulting allocations.
+
+Key concepts:
+
+- **Friction** = consumers playing `U_expressed ≠ U_true` (brand loyalty, habit, ignorance)
+- **AI agents** = forcing `U_expressed → U_true` (optimal preference expression)
+- **Zone decomposition (I, J, F)**: the strategy space decomposes into combinatorial zones indexed by active labour I, active goods J, and Fisher forest F. Within each zone, payoffs are smooth algebraic functions. Zone boundaries are regime shifts.
+- **Fisher forest (F)**: the spending pattern — which goods each class buys, ordered by bang-per-buck (BPB = U[i,j]/p[j]).
+
+### CCG Python API
+
+```python
+from scm.ccg import ccg_payoff, ccg_payoff_detailed, ccg_sweep, ccg_gradient
+from scm.ccg import ccg_zone_map, extract_forest, zone_label
+
+# Single payoff evaluation
+payoffs, result = ccg_payoff(T, U_true, U_expressed, Y, p_init)
+
+# Detailed payoff with decomposition and forest
+payoffs, payoff_mat, wages, prices, quantities, X, zone = \
+    ccg_payoff_detailed(T, U_true, U_expressed, Y, p_init)
+
+# Sweep over parameter grid (replicates MATLAB FeigningU.m)
+def U_func(params):
+    return np.array([[1, params['alpha']], [params['beta'], 1]])
+
+results = ccg_sweep(T, U_true, Y, p_init, U_func, param_grid)
+
+# 2D zone map
+zone_grid, payoff_grid, wage_grid, forest_grid = ccg_zone_map(
+    T, U_true, Y, p_init, U_func,
+    alpha_range, beta_range,
+    param1_name='alpha', param2_name='beta')
+
+# Numerical gradient (Jacobian)
+J = ccg_gradient(T, U_true, U_expressed, Y, p_init)
+```
+
+### Nash equilibrium search
+
+```python
+from scm.nash import nash_iteration, find_nash_candidates
+
+# Single run from a starting point
+result = nash_iteration(T, U_true, U_init, Y, p_init,
+                        max_iter=50, lr=0.1, tol=1e-4)
+
+# Multi-start search (ranked by convergence quality)
+candidates = find_nash_candidates(T, U_true, Y, p_init, n_restarts=5)
+best = candidates[0]
+print(best['payoffs'], best['convergence_gap'])
+```
+
+### Visualization (requires matplotlib)
+
+```python
+from scm.visualize import (
+    plot_zone_map, plot_zone_map_with_payoff,
+    plot_payoff_trajectory, plot_wage_trajectory,
+    plot_allocation_pattern, plot_forest_diagram,
+    plot_gradient_field,
+)
+
+# 2D zone structure heatmap
+plot_zone_map(zone_grid, alpha_range, beta_range,
+              output_file='zone_map.png')
+
+# Side-by-side zone + payoff heatmap
+plot_zone_map_with_payoff(zone_grid, payoff_grid, alpha_range, beta_range,
+                           player=0, output_file='zone_payoff.png')
+
+# 1D payoff/wage/price trajectories with zone transition markers
+plot_payoff_trajectory(param_vals, payoff_arr, zone_labels=zone_labels)
+
+# Bipartite graph showing spending flows (Fisher forest)
+plot_forest_diagram(X, I, J, output_file='forest.png')
+
+# Gradient direction quiver plot overlaid on zone map
+plot_gradient_field(grad_grid, param1_grid, param2_grid, zone_grid=zone_grid)
+```
+
 ## Usage
 
 ### Option 1: Edit `main.py`
@@ -68,8 +150,6 @@ Open `main.py`, set your economy parameters (T, U, Y, p_init), and run:
 ```bash
 python main.py
 ```
-
-The script solves the equilibrium, prints results, and verifies all conditions.
 
 ### Option 2: JSON config via `cli.py`
 
@@ -92,8 +172,6 @@ python cli.py your_economy.json
 python cli.py your_economy.json --max-iter 300 --tol 1e-8
 ```
 
-For PLC economies, use `"type": "plc"` with `"U1"`, `"U2"`, `"L1"` instead of `"U"`. See `examples/` for templates.
-
 ### Option 3: Python API
 
 ```python
@@ -112,7 +190,6 @@ print(f"Production: {result['q']}")
 print(f"Wages: {result['W']}")
 print(f"Allocations:\n{result['X']}")
 
-# Verify all equilibrium conditions
 checks, all_pass = check_scm_equilibrium(result, T, U, Y)
 ```
 
@@ -120,7 +197,6 @@ For PLC:
 
 ```python
 from scm import compute_equilibrium_plc, check_plc_equilibrium
-
 result = compute_equilibrium_plc(T, U1, U2, L1, Y, p_init)
 checks, ok = check_plc_equilibrium(result, T, U1, U2, L1, Y)
 ```
@@ -129,12 +205,7 @@ For general SPLC (S segments):
 
 ```python
 from scm import compute_equilibrium_splc
-
-# U has shape (m, n, S), L has shape (m, n, S)
-result = compute_equilibrium_splc(
-    T, U, L, Y, p_init,
-    damped=True, alpha=0.3, normalise=True
-)
+result = compute_equilibrium_splc(T, U, L, Y, p_init, damped=True, alpha=0.3)
 ```
 
 ## API reference
@@ -157,15 +228,48 @@ result = compute_equilibrium_splc(
 |----------|-------------|
 | `compute_equilibrium(T, U, Y, p_init, ...)` | Tatonnement loop (linear) |
 | `compute_equilibrium_plc(T, U1, U2, L1, Y, p_init, ...)` | Tatonnement loop (2-segment PLC) |
-| `compute_equilibrium_splc(T, U, L, Y, p_init, ...)` | Tatonnement loop (S-segment SPLC) with damping + normalisation support |
+| `compute_equilibrium_splc(T, U, L, Y, p_init, ...)` | Tatonnement loop (SPLC) with damping + normalisation |
 
 ### Robust solvers (v0.2.0)
 
 | Function | Description |
 |----------|-------------|
-| `solve_robust(T, U, Y, p_init)` | **Recommended.** Cascading solver: tries standard → Broyden → damped, returns best result. Solves 33/35 benchmark economies to fp_err < 1e-4. |
-| `solve_damped(T, U, Y, p_init, ...)` | Damped tatonnement with alpha sweep (0.3, 0.1, 0.05) and price normalisation. Most reliable single method. |
-| `solve_broyden(T, U, Y, p_init, ...)` | Broyden's quasi-Newton on F(p) = G(p) − p = 0 via `scipy.optimize.root`. Fast, handles many cycling cases. |
+| `solve_robust(T, U, Y, p_init)` | Cascading solver: standard → Broyden → damped. Solves 33/35 benchmark economies. |
+| `solve_damped(T, U, Y, p_init, ...)` | Damped tatonnement with alpha sweep and normalisation. |
+| `solve_broyden(T, U, Y, p_init, ...)` | Broyden's quasi-Newton on F(p) = G(p) - p = 0. |
+
+### Consumer Choice Game (v0.4.0)
+
+| Function | Description |
+|----------|-------------|
+| `ccg_payoff(T, U_true, U_expressed, Y, p_init)` | CCG payoff: equilibrium under U_expressed, evaluate at U_true |
+| `ccg_payoff_detailed(...)` | Payoff with per-good breakdown, zone data, Fisher forest |
+| `ccg_sweep(T, U_true, Y, p_init, U_func, grid)` | Sweep payoffs over parameter grid (≈ FeigningU.m) |
+| `ccg_gradient(T, U_true, U_expressed, Y, p_init)` | Numerical Jacobian via finite differences |
+| `ccg_zone_map(T, U_true, Y, p_init, U_func, p1, p2)` | 2D zone structure map with forest tracking |
+| `extract_forest(U, p, X, I, J)` | Extract Fisher forest (BPB spending pattern) from equilibrium |
+| `zone_label(I, J, forest)` | Readable zone label string |
+
+### Nash equilibrium (v0.4.0)
+
+| Function | Description |
+|----------|-------------|
+| `best_response_direction(T, U_true, U_expressed, Y, p_init, player)` | Gradient direction for one player |
+| `nash_iteration(T, U_true, U_init, Y, p_init)` | Simultaneous gradient ascent for all players |
+| `find_nash_candidates(T, U_true, Y, p_init, n_restarts)` | Multi-start Nash search, ranked by convergence |
+
+### Visualization (v0.4.0, requires matplotlib)
+
+| Function | Description |
+|----------|-------------|
+| `plot_zone_map(zone_grid, p1, p2)` | 2D zone heatmap with boundaries |
+| `plot_zone_map_with_payoff(zone_grid, payoff_grid, p1, p2)` | Side-by-side zone + payoff heatmap |
+| `plot_payoff_trajectory(params, payoffs)` | 1D payoff curves with zone transitions |
+| `plot_wage_trajectory(params, wages)` | 1D wage curves |
+| `plot_price_trajectory(params, prices)` | 1D price curves |
+| `plot_allocation_pattern(X)` | Stacked bar chart of goods per class |
+| `plot_forest_diagram(X, I, J)` | Bipartite spending-flow graph |
+| `plot_gradient_field(grad, p1, p2)` | Quiver plot on zone background |
 
 ### Verification
 
@@ -178,43 +282,64 @@ result = compute_equilibrium_splc(
 
 ```
 scm-equilibrium/
-  scm/                     Python package (core solvers + verification)
-    production.py            Production LP and wage computation
-    fisher_market.py         Linear Fisher market (Eisenberg-Gale)
-    fisher_market_plc.py     2-segment PLC Fisher market
-    fisher_market_splc.py    General S-segment SPLC Fisher market
-    scm_round.py             One SCM round (linear)
-    scm_round_plc.py         One SCM round (2-segment PLC)
-    scm_round_splc.py        One SCM round (S-segment SPLC)
-    equilibrium.py           Tatonnement iterator (linear)
-    equilibrium_plc.py       Tatonnement iterator (2-segment PLC)
-    equilibrium_splc.py      Tatonnement iterator (SPLC, with damping)
-    solvers.py               Robust solvers: damped, Broyden, cascading (v0.2)
-    verify.py                Equilibrium condition checker (10/11 conditions)
-  main.py                  Quick-start: define economy in code
-  cli.py                   CLI: load economy from JSON
-  examples/                Example economy JSON files + 3-piece PLC script
-  tests/                   pytest test suite (21 unit tests + 35-economy benchmark)
-  matlab_reference/        Original MATLAB codes for provenance
-  docs/                    Theory audit, computation research, damping math
+  scm/                         Python package
+    production.py                Production LP and wage computation
+    fisher_market.py             Linear Fisher market (Eisenberg-Gale)
+    fisher_market_plc.py         2-segment PLC Fisher market
+    fisher_market_splc.py        General S-segment SPLC Fisher market
+    scm_round.py                 One SCM round (linear)
+    scm_round_plc.py             One SCM round (PLC)
+    scm_round_splc.py            One SCM round (SPLC)
+    equilibrium.py               Tatonnement iterator (linear)
+    equilibrium_plc.py           Tatonnement iterator (PLC)
+    equilibrium_splc.py          Tatonnement iterator (SPLC)
+    solvers.py                   Robust solvers: damped, Broyden, cascading
+    verify.py                    Equilibrium condition checker (10/11 conditions)
+    ccg.py                       Consumer Choice Game: payoffs, sweeps, zone map, forest
+    nash.py                      Nash equilibrium finder: gradient ascent, multi-start
+    visualize.py                 Matplotlib visualization: zone maps, trajectories, forests
+  main.py                      Quick-start: define economy in code
+  cli.py                       CLI: load economy from JSON
+  examples/
+    economy_*.json               Example economy JSON configs
+    three_piece_plc.py           3-piece PLC example
+    ccg_soap_market.py           Full CCG analysis of paper's soap market
+    ccg_analysis_template.py     Generic CCG analysis template (modify for your economy)
+  tests/
+    test_ccg.py                  CCG tests: payoffs, sweeps, zones, forest extraction
+    test_nash.py                 Nash tests: gradient, iteration, multi-start
+    test_visualize.py            Visualization tests: all plot functions
+    test_equilibrium.py          Core equilibrium tests
+    test_fisher_market.py        Fisher market tests
+    test_production.py           Production LP tests
+    test_solvers.py              Robust solver tests
+    test_many_economies.py       35-economy benchmark suite
+    ...
+  docs/
+    CCG_CAPABILITIES.md          Analysis of CCG capabilities and gaps
+    PROJECT_SUMMARY.md           Development progress log
+    figures/                     Generated plots (from examples)
+  matlab_reference/              Original MATLAB codes for provenance
 ```
 
 ## Testing
 
 ```bash
-pip install pytest
-pytest tests/ -v                              # 21 unit tests
+pip install pytest matplotlib
+pytest tests/ -v                              # full test suite
+pytest tests/test_ccg.py -v                   # CCG + forest tests only
+pytest tests/test_nash.py -v                  # Nash equilibrium tests
+pytest tests/test_visualize.py -v             # Visualization tests
 python tests/test_many_economies.py           # 35-economy benchmark table
 ```
-
-The unit tests verify against the paper's documented numerical examples, analytical solutions with known closed-form answers, and synthetic economies checked exhaustively against all equilibrium conditions. The benchmark suite tests 35 economies from 2×2 to 6×6, including known-hard cases (toggling, near-singular T, extreme asymmetry).
 
 ## Dependencies
 
 - Python >= 3.9
 - NumPy >= 1.21
+- SciPy >= 1.7
 - CVXPY >= 1.3 (with CLARABEL solver, included by default)
-- Matplotlib (optional, for plotting utility curves)
+- Matplotlib >= 3.5 (optional, for visualization)
 
 ## References
 
