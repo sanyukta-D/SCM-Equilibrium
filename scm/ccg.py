@@ -43,7 +43,7 @@ from .scm_round import scm_round
 # Fisher Forest Extraction
 # ======================================================================
 
-def extract_forest(U, p, X, I, J, tol=1e-6):
+def extract_forest(U, p, X, I, J, tol=1e-3):
     """
     Extract the Fisher forest (spending pattern) from equilibrium data.
 
@@ -64,7 +64,9 @@ def extract_forest(U, p, X, I, J, tol=1e-6):
     J : array of int
         Active goods indices.
     tol : float
-        Threshold for considering an allocation positive.
+        Relative threshold for considering an allocation positive.
+        A class is considered to buy good j if X[i,j] / sum(X[i,:]) > tol.
+        Default 1e-3 avoids misclassifying numerical residuals as purchases.
 
     Returns
     -------
@@ -100,8 +102,13 @@ def extract_forest(U, p, X, I, J, tol=1e-6):
         ratios.sort(key=lambda x: -x[1])
         bpb_ordering.append(ratios)
 
-        # Forest: goods this class actually buys (positive allocation)
-        bought = tuple(j for j, _ in ratios if X[i, j] > tol)
+        # Forest: goods this class actually buys (relative threshold)
+        total_alloc = X[i, :].sum()
+        if total_alloc > 1e-12:
+            bought = tuple(j for j, _ in ratios
+                           if X[i, j] / total_alloc > tol)
+        else:
+            bought = ()
         forest_list.append(bought)
 
     return tuple(forest_list), bpb_ordering
@@ -460,25 +467,34 @@ def ccg_zone_map(T, U_true, Y, p_init, U_func, param1_grid, param2_grid,
     total = n1 * n2
     count = 0
 
+    n_errors = 0
     for i, v1 in enumerate(param1_grid):
         for j, v2 in enumerate(param2_grid):
             count += 1
             params = {param1_name: v1, param2_name: v2}
             U_expr = np.array(U_func(params), dtype=float)
 
-            payoffs, _, wages, _, _, _, zone = \
-                ccg_payoff_detailed(T, U_true, U_expr, Y, p_init,
-                                    solver=solver, tol=tol)
+            try:
+                payoffs, _, wages, _, _, _, zone = \
+                    ccg_payoff_detailed(T, U_true, U_expr, Y, p_init,
+                                        solver=solver, tol=tol)
 
-            zlabel = zone_label(zone['I'], zone['J'], zone['F'])
+                zlabel = zone_label(zone['I'], zone['J'], zone['F'])
 
-            zone_grid[i, j] = zlabel
-            forest_grid[i, j] = zone['F']
-            payoff_grid[i, j, :] = payoffs
-            wage_grid[i, j, :] = wages
+                zone_grid[i, j] = zlabel
+                forest_grid[i, j] = zone['F']
+                payoff_grid[i, j, :] = payoffs
+                wage_grid[i, j, :] = wages
+            except Exception:
+                zone_grid[i, j] = 'ERROR'
+                forest_grid[i, j] = None
+                n_errors += 1
 
             if verbose and count % max(1, total // 20) == 0:
                 print(f"  [{count}/{total}] ({param1_name}={v1:.2f}, "
-                      f"{param2_name}={v2:.2f}) → {zlabel}")
+                      f"{param2_name}={v2:.2f}) → {zone_grid[i, j]}")
+
+    if n_errors > 0 and verbose:
+        print(f"  Warning: {n_errors}/{total} points failed to solve.")
 
     return zone_grid, payoff_grid, wage_grid, forest_grid

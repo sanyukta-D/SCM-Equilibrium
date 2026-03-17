@@ -10,7 +10,10 @@ python main.py                                        # edit economy in code
 python cli.py examples/economy_2x2_linear.json        # or load from JSON
 python examples/ccg_soap_market.py                    # CCG analysis (soap market from paper)
 python examples/ccg_analysis_template.py              # CCG template (modify for your economy)
+python examples/full_demo.py                          # full walkthrough with all visualizations
 ```
+
+For a guided visual tour, open `docs/walkthrough/CCG_Walkthrough.html` in your browser.
 
 ## What is the SCM?
 
@@ -83,8 +86,9 @@ payoffs, payoff_mat, wages, prices, quantities, X, zone = \
     ccg_payoff_detailed(T, U_true, U_expressed, Y, p_init)
 
 # Sweep over parameter grid (replicates MATLAB FeigningU.m)
+# Section 6 convention: alpha, beta = pref for good 0 relative to good 1
 def U_func(params):
-    return np.array([[1, params['alpha']], [params['beta'], 1]])
+    return np.array([[params['alpha'], 1], [params['beta'], 1]])
 
 results = ccg_sweep(T, U_true, Y, p_init, U_func, param_grid)
 
@@ -282,45 +286,70 @@ result = compute_equilibrium_splc(T, U, L, Y, p_init, damped=True, alpha=0.3)
 
 ```
 scm-equilibrium/
-  scm/                         Python package
-    production.py                Production LP and wage computation
-    fisher_market.py             Linear Fisher market (Eisenberg-Gale)
-    fisher_market_plc.py         2-segment PLC Fisher market
-    fisher_market_splc.py        General S-segment SPLC Fisher market
-    scm_round.py                 One SCM round (linear)
-    scm_round_plc.py             One SCM round (PLC)
-    scm_round_splc.py            One SCM round (SPLC)
-    equilibrium.py               Tatonnement iterator (linear)
-    equilibrium_plc.py           Tatonnement iterator (PLC)
-    equilibrium_splc.py          Tatonnement iterator (SPLC)
-    solvers.py                   Robust solvers: damped, Broyden, cascading
-    verify.py                    Equilibrium condition checker (10/11 conditions)
-    ccg.py                       Consumer Choice Game: payoffs, sweeps, zone map, forest
-    nash.py                      Nash equilibrium finder: gradient ascent, multi-start
-    visualize.py                 Matplotlib visualization: zone maps, trajectories, forests
-  main.py                      Quick-start: define economy in code
-  cli.py                       CLI: load economy from JSON
-  examples/
-    economy_*.json               Example economy JSON configs
-    three_piece_plc.py           3-piece PLC example
-    ccg_soap_market.py           Full CCG analysis of paper's soap market
-    ccg_analysis_template.py     Generic CCG analysis template (modify for your economy)
-  tests/
-    test_ccg.py                  CCG tests: payoffs, sweeps, zones, forest extraction
-    test_nash.py                 Nash tests: gradient, iteration, multi-start
-    test_visualize.py            Visualization tests: all plot functions
-    test_equilibrium.py          Core equilibrium tests
-    test_fisher_market.py        Fisher market tests
-    test_production.py           Production LP tests
-    test_solvers.py              Robust solver tests
-    test_many_economies.py       35-economy benchmark suite
-    ...
+  scm/                           Core Python library
+    production.py                  Production LP and wage computation
+    fisher_market.py               Linear Fisher market (Eisenberg-Gale)
+    fisher_market_plc.py           2-segment PLC Fisher market
+    fisher_market_splc.py          General S-segment SPLC Fisher market
+    scm_round.py                   One SCM round (linear)
+    scm_round_plc.py               One SCM round (PLC)
+    scm_round_splc.py              One SCM round (SPLC)
+    equilibrium.py                 Tatonnement iterator (linear)
+    equilibrium_plc.py             Tatonnement iterator (PLC)
+    equilibrium_splc.py            Tatonnement iterator (SPLC)
+    solvers.py                     Robust solvers: damped, Broyden, cascading
+    verify.py                      Equilibrium condition checker (10/11 conditions)
+    ccg.py                         Consumer Choice Game: payoffs, sweeps, zone map, forest
+    nash.py                        Nash equilibrium finder: gradient ascent, multi-start
+    visualize.py                   Matplotlib plots: zone maps, trajectories, forests
+
+  examples/                      Runnable scripts and economy configs
+    ccg_soap_market.py             CCG analysis of paper's 2×2 soap market
+    ccg_analysis_template.py       Generic CCG template (copy and modify for your economy)
+    full_demo.py                   Complete walkthrough: 2×2 + 3×3 with all visualizations
+    three_piece_plc.py             3-piece PLC utility example
+    economy_*.json                 Economy JSON configs for cli.py
+
+  tests/                         Test suite (40 tests)
+    test_ccg.py                    CCG: payoffs, sweeps, zones, forest extraction
+    test_nash.py                   Nash: gradient, iteration, multi-start
+    test_visualize.py              Visualization: all plot functions
+    test_equilibrium.py            Core equilibrium convergence
+    test_fisher_market.py          Fisher market allocation
+    test_production.py             Production LP
+    test_solvers.py                Robust solver cascade
+    test_many_economies.py         35-economy benchmark suite
+
   docs/
-    CCG_CAPABILITIES.md          Analysis of CCG capabilities and gaps
-    PROJECT_SUMMARY.md           Development progress log
-    figures/                     Generated plots (from examples)
+    walkthrough/                   Interactive CCG walkthrough
+      CCG_Walkthrough.html           Open in browser — full guided tour with figures
+      figures/                       All generated plots (2×2 and 3×3)
+    paper_verification.md          Detailed verification against paper results
+    CCG_CAPABILITIES.md            Analysis of CCG capabilities and gaps
+    DAMPED_TATONNEMENT_MATH.md     Mathematical derivation of damped tatonnement
+    PROJECT_SUMMARY.md             Development progress log
+
   matlab_reference/              Original MATLAB codes for provenance
+  main.py                       Quick-start: define economy in code
+  cli.py                        CLI: load economy from JSON
 ```
+
+## Paper verification
+
+The solver has been verified against the paper's 2×2 soap market economy (T=[[0.2501,0],[0.25,1]], U_true=[[1,1],[1,1]], Y=[2,4]).
+
+**Appendix A tables:** Table 1 achieves a perfect 32/32 match against values extracted directly from the paper's PDF. Table 2 achieves 12/32; mismatches occur in the multi-equilibria region (αβ > 1) where the Eisenberg-Gale solver selects a different equilibrium branch than the MATLAB Lemke pivot.
+
+**Section 6 zone decomposition (U = [[α, 1], [β, 1]]):**
+
+| Zone | Match | Description |
+|------|-------|-------------|
+| Forest-1 | 96.4% | C0→G0, C1→both (class 1 indifferent). 55 mismatches on α=β diagonal only. |
+| Forest-2 | 100% | C0→both, C1→G0 (class 0 indifferent) |
+| Forest-3 | 100% | C0→G1, C1→both |
+| Zone-5 | 100% | Only class 1 active (β ≤ 1/4) |
+
+Excluding the α=β non-generic boundary, match rate is **100%**. Forest-4 (C0→G1, C1→G0) does not exist for β < T[1,1]/T[1,0] = 4 in this economy due to production constraints; the paper's generic zone condition "α ≤ 1/2, β ≥ 1/2" has economy-specific boundaries.
 
 ## Testing
 

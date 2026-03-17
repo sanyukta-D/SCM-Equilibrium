@@ -12,10 +12,14 @@ Economy:
   U_true = [[1, 1], [1, 1]]       — Both classes value both goods equally
   Y = [2, 4]                      — Class 1 has more labour
 
-CCG parameterisation:
-  U_expressed = [[1, alpha], [beta, 1]]
-  alpha = class 0's expressed preference for good 1
-  beta  = class 1's expressed preference for good 0
+CCG parameterisation (Section 6 / zone analysis):
+  U_expressed = [[alpha, 1], [beta, 1]]
+  alpha = class 0's expressed preference for good 0 (relative to good 1)
+  beta  = class 1's expressed preference for good 0 (relative to good 1)
+
+  Note: The paper's Appendix A tables use a transposed convention
+  U = [[1, beta], [alpha, 1]], but the zone analysis in Section 6
+  explicitly uses U = [[alpha, 1], [beta, 1]] (see paper page 15).
 
 Outputs saved to docs/figures/soap_*.png
 """
@@ -52,8 +56,8 @@ CLASS_LABELS = ['Class 0 (specialist)', 'Class 1 (generalist)']
 GOOD_LABELS = ['Good 0', 'Good 1']
 
 def U_func(params):
-    """Expressed utility: [[1, alpha], [beta, 1]]."""
-    return np.array([[1.0, params.get('alpha', 1.0)],
+    """Expressed utility: [[alpha, 1], [beta, 1]] (Section 6 convention)."""
+    return np.array([[params.get('alpha', 1.0), 1.0],
                      [params.get('beta', 1.0), 1.0]])
 
 # Output directory
@@ -84,7 +88,7 @@ for z in unique_zones:
     print(f"  {z}  ({count} grid points)")
 
 plot_zone_map(zone_grid, alpha_grid, beta_grid,
-              param1_name=r'$\alpha$ (class 0 pref for good 1)',
+              param1_name=r'$\alpha$ (class 0 pref for good 0)',
               param2_name=r'$\beta$ (class 1 pref for good 0)',
               title='Soap Market: Zone Structure (I, J, F)',
               output_file=savepath('soap_zone_map.png'))

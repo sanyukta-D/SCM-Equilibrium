@@ -124,18 +124,18 @@ def run_2x2():
     # ---- Step 2: CCG parameterization and zone map ----
     separator("A.2: ZONE MAP (strategic play)")
 
-    print("  Strategy parameterization:")
-    print("    U_expressed = [[1, alpha], [beta, 1]]")
-    print("    alpha = Class 0's expressed preference for good 1")
-    print("    beta  = Class 1's expressed preference for good 0")
+    print("  Strategy parameterization (Section 6 convention):")
+    print("    U_expressed = [[alpha, 1], [beta, 1]]")
+    print("    alpha = Class 0's expressed preference for good 0 (rel. to good 1)")
+    print("    beta  = Class 1's expressed preference for good 0 (rel. to good 1)")
     print("    alpha=1, beta=1 → honest play")
-    print("    alpha>1 → Class 0 overstates desire for haircuts")
+    print("    alpha>1 → Class 0 overstates desire for soap")
     print("    beta<1  → Class 1 understates desire for soap")
 
     def U_func_2x2(params):
         a = params.get('alpha', 1.0)
         b = params.get('beta', 1.0)
-        return np.array([[1.0, a], [b, 1.0]])
+        return np.array([[a, 1.0], [b, 1.0]])
 
     alpha_range = np.linspace(0.1, 3.0, 40)
     beta_range = np.linspace(0.1, 3.0, 40)
@@ -157,8 +157,8 @@ def run_2x2():
     # Zone map plot
     fig3, ax3 = plot_zone_map(
         zone_grid, alpha_range, beta_range,
-        param1_name='alpha (L0 expression for g1)',
-        param2_name='beta (L1 expression for g0)',
+        param1_name='alpha (L0 pref for g0)',
+        param2_name='beta (L1 pref for g0)',
         title='2×2 Soap Market: Zone Structure (I, J, F)',
         output_file=os.path.join(OUTDIR, '2x2_zone_map.png'))
     plt.close(fig3)
@@ -195,7 +195,7 @@ def run_2x2():
 
     fig4, ax4 = plot_payoff_trajectory(
         beta_range, payoff_beta, class_labels,
-        param_name='beta (L1 expression for g0)',
+        param_name='beta (L1 pref for g0)',
         title='2×2 Soap: Payoffs vs beta (alpha=1)',
         zone_labels=zlabels_beta,
         output_file=os.path.join(OUTDIR, '2x2_payoff_vs_beta.png'))
@@ -203,7 +203,7 @@ def run_2x2():
 
     fig5, ax5 = plot_wage_trajectory(
         beta_range, wage_beta, class_labels,
-        param_name='beta (L1 expression for g0)',
+        param_name='beta (L1 pref for g0)',
         title='2×2 Soap: Wages vs beta (alpha=1)',
         zone_labels=zlabels_beta,
         output_file=os.path.join(OUTDIR, '2x2_wage_vs_beta.png'))
@@ -211,7 +211,7 @@ def run_2x2():
 
     fig5b, ax5b = plot_price_trajectory(
         beta_range, price_beta, good_labels,
-        param_name='beta (L1 expression for g0)',
+        param_name='beta (L1 pref for g0)',
         title='2×2 Soap: Prices vs beta (alpha=1)',
         zone_labels=zlabels_beta,
         output_file=os.path.join(OUTDIR, '2x2_price_vs_beta.png'))
@@ -232,7 +232,7 @@ def run_2x2():
 
     fig6, ax6 = plot_payoff_trajectory(
         alpha_range, payoff_alpha, class_labels,
-        param_name='alpha (L0 expression for g1)',
+        param_name='alpha (L0 pref for g0)',
         title='2×2 Soap: Payoffs vs alpha (beta=1)',
         zone_labels=zlabels_alpha,
         output_file=os.path.join(OUTDIR, '2x2_payoff_vs_alpha.png'))
@@ -243,8 +243,8 @@ def run_2x2():
 
     interesting_points = [
         {'alpha': 1.0, 'beta': 1.0, 'label': 'honest'},
-        {'alpha': 0.3, 'beta': 1.0, 'label': 'L0_understates_g1'},
-        {'alpha': 2.0, 'beta': 1.0, 'label': 'L0_overstates_g1'},
+        {'alpha': 0.3, 'beta': 1.0, 'label': 'L0_understates_g0'},
+        {'alpha': 2.0, 'beta': 1.0, 'label': 'L0_overstates_g0'},
         {'alpha': 1.0, 'beta': 0.3, 'label': 'L1_understates_g0'},
         {'alpha': 1.0, 'beta': 2.0, 'label': 'L1_overstates_g0'},
     ]
