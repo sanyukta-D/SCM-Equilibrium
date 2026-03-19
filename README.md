@@ -1,49 +1,60 @@
-# scm-equilibrium
+# Simple Closed Model — Equilibrium Computation and Consumer Choice Game
 
-Compute SM equilibria for the **Simple Closed Model** (SCM) from [Deshpande & Sohoni (2021)](https://arxiv.org/abs/2109.09248). Supports linear, piecewise-linear concave (PLC), and general S-segment SPLC utilities. Includes the **Consumer Choice Game** (CCG) framework for analysing strategic preference expression, zone decomposition, Nash equilibrium search, and visualization.
+This repository implements the economic model and computational framework from:
 
-## Quick start
+> **Deshpande, A. & Sohoni, M. (2021).** *A Simple Closed Economy Model.* [arXiv:2109.09248](https://arxiv.org/abs/2109.09248)
+
+The Simple Closed Model (SCM) is a general-equilibrium model of an economy with multiple labour classes and goods. This codebase provides solvers for computing SM equilibria, a full implementation of the Consumer Choice Game (CCG) for analysing strategic preference expression, and tools for zone decomposition, Nash equilibrium search, and visualisation.
+
+---
+
+## The Model
+
+The SCM describes an economy with **m labour classes** and **n goods**. Each class supplies labour, earns wages determined by production, and spends those wages on goods according to its preferences. The economy is characterised by three primitives:
+
+- **T** (m × n) — the technology matrix, where T[i,j] is the labour of class i required to produce one unit of good j
+- **U** (m × n) — the utility matrix, where U[i,j] is the marginal utility of good j for class i
+- **Y** (m,) — the labour endowment vector, where Y[i] is the total labour supply of class i
+
+A price vector **p** is an **SM equilibrium** when applying one full SCM round — production optimisation, wage computation, and consumer spending via a Fisher market — returns the same price vector. At equilibrium, ten conditions hold simultaneously: money conservation, price non-negativity, labour feasibility, production non-negativity, market clearing, budget exhaustion, wage consistency, bang-per-buck optimality, fixed-point stability, and production optimality.
+
+The codebase supports three utility variants: linear utilities, two-segment piecewise-linear-concave (PLC) utilities (with diminishing returns after a capacity threshold), and general S-segment SPLC utilities.
+
+## The Consumer Choice Game
+
+The CCG, introduced in Section 6 of the paper, models **strategic preference expression**. Each labour class has true utilities U_true but may express different preferences U_expressed to the market. The economy reaches equilibrium under expressed utilities, and each class's payoff is evaluated using its true utilities on the resulting allocations.
+
+This framework captures several economically meaningful phenomena:
+
+- **Friction** arises when consumers play U_expressed ≠ U_true, whether due to brand loyalty, habit, or incomplete information.
+- **AI intermediation** corresponds to forcing U_expressed → U_true, eliminating friction and recovering optimal preference expression.
+- **Zone decomposition** — the strategy space decomposes into combinatorial zones indexed by the active labour set I, active goods set J, and Fisher forest F. Within each zone, payoffs are smooth algebraic functions; zone boundaries represent regime shifts in the equilibrium structure.
+- **Fisher forest** — the bipartite spending pattern describing which goods each class purchases, ordered by bang-per-buck.
+
+---
+
+## Getting Started
+
+### Installation
 
 ```bash
 pip install -r requirements.txt
-python main.py                                        # edit economy in code
-python cli.py examples/economy_2x2_linear.json        # or load from JSON
-python examples/paper_2x2_reproduction.py             # reproduce paper's 2×2 analysis with verification
 ```
 
-## The model
+The core dependencies are NumPy, SciPy, and CVXPY (with the CLARABEL solver, included by default). Matplotlib is needed only for visualisation.
 
-The Simple Closed Model is a general-equilibrium economic model with **m labour classes** and **n goods**. Each class supplies labour, earns wages, and spends those wages on goods. The model has three primitives:
+### Running Examples
 
-| Symbol | Shape | Meaning |
-|--------|-------|---------|
-| **T** | (m, n) | Technology matrix: `T[i,j]` = units of labour class *i* needed to produce one unit of good *j* |
-| **U** | (m, n) | Utility matrix: `U[i,j]` = utility per unit of good *j* for class *i* |
-| **Y** | (m,) | Labour endowments: `Y[i]` = total labour supply of class *i* |
-
-For PLC utilities, **U** is replaced by **U1**, **U2** (segment utilities with U2 ≤ U1) and **L1** (segment-1 capacity limits). For general SPLC, **U** has shape (m, n, S) with S segments of decreasing marginal utility.
-
-### SM equilibrium
-
-A price vector **p** is an **SM equilibrium** if applying one full SCM round returns the same **p**. At equilibrium, 10 conditions hold simultaneously: money conservation, price non-negativity, labour feasibility, production non-negativity, market clearing, budget exhaustion, wage consistency, bang-per-buck optimality, fixed-point stability, and production optimality.
-
-### Tatonnement
-
-**Tatonnement** iterates the SCM map `p_{t+1} = SCM_round(p_t)` to converge to an SM equilibrium. **Damped tatonnement** uses `p_{t+1} = (1-α)p_t + α·G(p_t)` with optional price normalisation, which stabilises cycling and diverging economies.
-
-### Consumer Choice Game (CCG)
-
-The CCG models **strategic preference expression**. Each labour class has true utilities `U_true` but can express different preferences `U_expressed`. The economy runs at equilibrium under `U_expressed`, and each player's payoff is evaluated using `U_true` on the resulting allocations.
-
-Key concepts from the paper:
-- **Friction** = consumers playing `U_expressed ≠ U_true` (brand loyalty, habit, ignorance)
-- **AI agents** = forcing `U_expressed → U_true` (optimal preference expression)
-- **Zone decomposition (I, J, F)**: the strategy space decomposes into combinatorial zones indexed by active labour I, active goods J, and Fisher forest F. Within each zone, payoffs are smooth algebraic functions. Zone boundaries are regime shifts.
-- **Fisher forest (F)**: the spending pattern — which goods each class buys, ordered by bang-per-buck.
-
-## Usage
+```bash
+python main.py                                        # minimal example with inline economy
+python cli.py examples/economy_2x2_linear.json        # load economy from JSON
+python examples/paper_2x2_reproduction.py             # full reproduction of the paper's 2×2 analysis
+python examples/full_demo.py                          # end-to-end walkthrough: equilibrium → CCG → zones → Nash
+```
 
 ### Python API
+
+Computing an equilibrium:
 
 ```python
 import numpy as np
@@ -54,154 +65,106 @@ U = np.array([[1.0, 0.8], [0.8, 1.0]])
 Y = np.array([2.0, 4.0])
 
 result = solve_robust(T, U, Y, p_init=np.array([1.0, 1.0]))
-
-print(f"Prices: {result['p']}")
-print(f"Production: {result['q']}")
-print(f"Allocations:\n{result['X']}")
-
 checks, all_pass = check_scm_equilibrium(result, T, U, Y)
 ```
 
-### CCG analysis
+Running a CCG analysis:
 
 ```python
-from scm import ccg_payoff_detailed, ccg_zone_map, extract_forest
+from scm import ccg_payoff_detailed, ccg_zone_map
 
-# Single payoff evaluation
+# Evaluate payoffs under strategic play
 payoffs, payoff_mat, wages, prices, quantities, X, zone = \
     ccg_payoff_detailed(T, U_true, U_expressed, Y, p_init)
 
-# 2D zone map over strategy space
-def U_func(params):
-    return np.array([[params['alpha'], 1], [params['beta'], 1]])
-
+# Map the zone structure across a 2D strategy space
 zone_grid, payoff_grid, wage_grid, forest_grid = ccg_zone_map(
     T, U_true, Y, p_init, U_func, alpha_range, beta_range)
 ```
 
-### Nash equilibrium search
+Searching for Nash equilibria:
 
 ```python
 from scm import find_nash_candidates
 
 candidates = find_nash_candidates(T, U_true, Y, p_init, n_restarts=5)
-best = candidates[0]
-print(best['payoffs'], best['convergence_gap'])
 ```
 
-### CLI
+---
 
-```bash
-python cli.py examples/economy_2x2_linear.json
-python cli.py examples/economy_2x2_linear.json --max-iter 300 --tol 1e-8
-```
-
-## API reference
-
-### Core functions
-
-| Function | Description |
-|----------|-------------|
-| `solve_production(T, Y, p)` | Production LP: quantities, wages, active sets I, J |
-| `solve_fisher(U, q, budgets)` | Linear Fisher market (Eisenberg-Gale) |
-| `solve_fisher_plc(U1, U2, L1, q, budgets)` | 2-segment PLC Fisher market |
-| `solve_fisher_splc(U, L, q, budgets)` | General S-segment PLC Fisher market |
-| `scm_round(T, U, Y, p)` | One full SCM round (linear) |
-
-### Equilibrium solvers
-
-| Function | Description |
-|----------|-------------|
-| `compute_equilibrium(T, U, Y, p_init)` | Tatonnement loop (linear) |
-| `compute_equilibrium_plc(...)` | Tatonnement loop (2-segment PLC) |
-| `compute_equilibrium_splc(...)` | Tatonnement loop (SPLC) with damping |
-| `solve_robust(T, U, Y, p_init)` | Cascading solver: standard → Broyden → damped |
-| `solve_damped(T, U, Y, p_init)` | Damped tatonnement with alpha sweep |
-| `solve_broyden(T, U, Y, p_init)` | Broyden's quasi-Newton method |
-
-### Consumer Choice Game
-
-| Function | Description |
-|----------|-------------|
-| `ccg_payoff(T, U_true, U_expressed, Y, p_init)` | CCG payoff evaluation |
-| `ccg_payoff_detailed(...)` | Payoff with per-good breakdown, zone data, Fisher forest |
-| `ccg_sweep(T, U_true, Y, p_init, U_func, grid)` | Sweep payoffs over parameter grid |
-| `ccg_gradient(T, U_true, U_expressed, Y, p_init)` | Numerical Jacobian |
-| `ccg_zone_map(...)` | 2D zone structure map with forest tracking |
-| `extract_forest(U, p, X, I, J)` | Extract Fisher forest from equilibrium |
-| `describe_forest(I, J, forest, m)` | Structural classification of forest pattern |
-
-### Nash equilibrium
-
-| Function | Description |
-|----------|-------------|
-| `best_response_direction(...)` | Gradient direction for one player |
-| `nash_iteration(T, U_true, U_init, Y, p_init)` | Simultaneous gradient ascent |
-| `find_nash_candidates(T, U_true, Y, p_init, n_restarts)` | Multi-start Nash search |
-
-### Visualization (requires matplotlib)
-
-| Function | Description |
-|----------|-------------|
-| `plot_zone_map(zone_grid, p1, p2)` | 2D zone heatmap with boundaries |
-| `plot_zone_map_with_payoff(...)` | Side-by-side zone + payoff heatmap |
-| `plot_payoff_trajectory(params, payoffs)` | 1D payoff curves with zone transitions |
-| `plot_forest_diagram(X, I, J)` | Bipartite spending-flow graph |
-| `plot_gradient_field(grad, p1, p2)` | Quiver plot on zone background |
-
-### Verification
-
-| Function | Description |
-|----------|-------------|
-| `check_scm_equilibrium(result, T, U, Y)` | Check all 10 SM equilibrium conditions |
-| `check_plc_equilibrium(...)` | Check all 11 PLC equilibrium conditions |
-
-## Project structure
+## Repository Structure
 
 ```
-scm-equilibrium/
-  scm/                           Core library (general m×n)
-  examples/                      Runnable scripts and JSON economy configs
-  tests/                         Test suite (155 tests)
-  docs/                          Generated documentation and figures (not tracked)
-  matlab_reference/              Original MATLAB codes for provenance
-  main.py                        Quick-start script
-  cli.py                         CLI interface
+scm/                    Core library — fully general for any m×n economy
+  production.py           Production LP and wage computation
+  fisher_market.py        Linear-utility Fisher market (Eisenberg-Gale)
+  fisher_market_plc.py    Two-segment PLC Fisher market via CVXPY
+  fisher_market_splc.py   General S-segment PLC Fisher market
+  scm_round.py            One SCM round: production → wages → spending → prices
+  equilibrium.py          Tâtonnement iteration loop
+  solvers.py              Robust cascading solver, damped tâtonnement, Broyden
+  ccg.py                  Consumer Choice Game: payoffs, sweeps, zone maps
+  nash.py                 Nash equilibrium search via gradient ascent
+  verify.py               Equilibrium verification (10 linear + 11 PLC conditions)
+  visualize.py            Zone maps, payoff surfaces, forest diagrams
+
+examples/               Runnable demonstrations and economy configurations
+  paper_2x2_reproduction.py   Full verification against the paper's 2×2 economy
+  full_demo.py                End-to-end walkthrough of all capabilities
+  ccg_soap_market.py          Paper's soap market example with CCG analysis
+  ccg_analysis_template.py    Reusable template for CCG analysis of any economy
+  economy_*.json              Example economy definitions (2×2, 3×3, linear, PLC)
+
+tests/                  Test suite (155+ tests across all modules)
+docs/                   Technical documentation, theory audit, and generated figures
 ```
 
-## Paper verification
+The library code in `scm/` is written to be fully general for any m×n economy. Paper-specific names, mappings, and display logic appear only in the example scripts, never in the core library.
 
-The solver has been verified against the paper's 2×2 soap market economy (T=[[0.2501,0],[0.25,1]], U=[[1,1],[1,1]], Y=[2,4]).
+## Equilibrium Solvers
 
-**Appendix A tables:** Table 1 achieves a perfect 32/32 match. Table 2 achieves 12/32; mismatches occur in the multi-equilibria region (αβ > 1) where the Eisenberg-Gale solver selects a different equilibrium branch than the MATLAB Lemke pivot.
+The codebase provides several equilibrium computation methods, benchmarked across 35 economies ranging from 2×2 to 6×6:
 
-**Section 6 zone decomposition (U = [[α, 1], [β, 1]]):**
+- **Standard tâtonnement** — iterates the SCM map p_{t+1} = SCM_round(p_t) until convergence. Effective for well-behaved economies but can cycle or diverge.
+- **Damped tâtonnement** — uses convex combination p_{t+1} = (1−α)p_t + α·G(p_t) with an automatic step-size sweep and price normalisation. The most reliable single method, solving 32 of 35 benchmark economies.
+- **Broyden quasi-Newton** — treats equilibrium-finding as root-finding. Fast convergence when it works, and complements damped tâtonnement on different economy types.
+- **Robust cascading solver** (`solve_robust`) — the recommended entry point. Tries standard tâtonnement first, falls back to Broyden, then to damped tâtonnement, returning the best result. Solves 33 of 35 benchmark economies to fixed-point error below 1e-4.
 
-| Zone | Match | Description |
-|------|-------|-------------|
-| Forest-1 | 94.7% (666/703) | C0→G0, C1→both. Mismatches on α=β diagonal only. |
-| Forest-2 | 100% (561/561) | C0→both, C1→G0 |
-| Forest-3 | 100% (12/12) | C0→G1, C1→both |
-| Forest-4 | 100% (204/204) | C0→G1, C1→G0 (complete specialisation) |
-| Zone-5 | 100% (120/120) | Only class 1 active (β ≤ 1/4) |
+---
 
-Overall: **97.7%** (1563/1600). Excluding the α=β non-generic boundary: **100%** (1482/1482). All five zones predicted by the paper are found by the solver.
+## Verification Against the Paper
+
+The solver has been systematically verified against the paper's 2×2 soap market economy (T = [[0.2501, 0], [0.25, 1]], U = [[1, 1], [1, 1]], Y = [2, 4]).
+
+**Appendix A numerical tables:** Table 1 achieves a 32/32 match against the paper's documented equilibria. Table 2 achieves 12/32; mismatches occur in the multi-equilibria region (αβ > 1) where the Eisenberg-Gale convex program selects a different equilibrium branch than the paper's MATLAB Lemke pivot — both are valid equilibria.
+
+**Section 6 zone decomposition** (parameterised as U = [[α, 1], [β, 1]]):
+
+- All five zones predicted by the paper are identified by the solver.
+- Overall match: 97.7% (1563 of 1600 grid points).
+- Excluding the non-generic α = β boundary: 100% (1482 of 1482).
+
+The full reproduction script (`examples/paper_2x2_reproduction.py`) regenerates all verification tables and zone maps.
 
 ## Testing
 
 ```bash
-pip install pytest matplotlib
 pytest tests/ -v
 ```
 
-## Dependencies
+The test suite covers production LP solving, Fisher market computation (linear and PLC), single-round SCM dynamics, tâtonnement convergence, all equilibrium solvers, CCG payoff evaluation, zone decomposition, Nash equilibrium search, and visualisation.
 
-- Python >= 3.9
-- NumPy >= 1.21
-- SciPy >= 1.7
-- CVXPY >= 1.3 (with CLARABEL solver, included by default)
-- Matplotlib >= 3.5 (optional, for visualization)
+---
 
-## References
+## Citation
 
-Deshpande, A. & Sohoni, M. (2021). *A Simple Closed Economy Model.* arXiv:2109.09248.
+If you use this code in your research, please cite the underlying paper:
+
+```bibtex
+@article{deshpande2021simple,
+  title={A Simple Closed Economy Model},
+  author={Deshpande, Anirudha and Sohoni, Milind},
+  journal={arXiv preprint arXiv:2109.09248},
+  year={2021}
+}
+```
