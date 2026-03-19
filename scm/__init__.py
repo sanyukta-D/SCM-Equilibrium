@@ -45,7 +45,8 @@ from .solvers import solve_robust, solve_damped, solve_broyden
 
 # Consumer Choice Game (Task 3: strategic preference expression)
 from .ccg import (ccg_payoff, ccg_payoff_detailed, ccg_sweep, ccg_gradient,
-                  ccg_zone_map, extract_forest, zone_label)
+                  ccg_zone_map, extract_forest, zone_label,
+                  describe_forest, classify_zone)
 
 # Nash equilibrium finder
 from .nash import best_response_direction, nash_iteration, find_nash_candidates

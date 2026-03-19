@@ -153,6 +153,131 @@ def zone_label(I, J, forest=None):
     return label
 
 
+def describe_forest(I, J, forest, m=None):
+    """
+    General structural description of a Fisher forest from solver output.
+
+    Works for ANY m×n economy. Produces a dict describing each class's role
+    (which goods it buys) and a canonical string label. No hardcoded zone
+    names — the label is purely derived from the solver's output.
+
+    Parameters
+    ----------
+    I : array-like
+        Active class indices.
+    J : array-like
+        Active good indices.
+    forest : tuple of tuples
+        Fisher forest from extract_forest(). forest[k] = goods bought by I[k].
+    m : int or None
+        Total number of classes in the economy. If None, inferred from max(I)+1.
+
+    Returns
+    -------
+    desc : dict with keys:
+        'n_active_classes' : int
+        'n_active_goods'   : int
+        'active_classes'   : tuple of int
+        'active_goods'     : tuple of int
+        'pattern'          : tuple of frozenset
+            pattern[k] = frozenset of goods bought by active class I[k].
+            Canonical form: order follows I. For inactive classes, empty set.
+        'roles'            : dict {class_idx: 'specialist'|'generalist'|'inactive'}
+            'specialist' = buys exactly 1 good
+            'generalist' = buys 2+ goods
+            'inactive'   = not in I (zero allocation)
+        'label'            : str
+            Canonical human-readable label, e.g. "C0:{g0}|C1:{g0,g1}" or
+            "C1_only:{g0,g1}". Encodes the full spending pattern without
+            assuming any paper-specific naming convention.
+    """
+    I = np.asarray(I).ravel()
+    J = np.asarray(J).ravel()
+
+    if forest is None:
+        return {'n_active_classes': 0, 'n_active_goods': 0,
+                'active_classes': (), 'active_goods': (),
+                'pattern': (), 'roles': {}, 'label': 'ERR'}
+
+    if m is None:
+        m = int(max(I)) + 1 if len(I) > 0 else 0
+
+    n_active = len(I)
+    n_goods = len(J)
+
+    # Build pattern and roles
+    pattern = []
+    roles = {}
+    label_parts = []
+
+    for k in range(n_active):
+        goods = frozenset(forest[k]) if k < len(forest) else frozenset()
+        pattern.append(goods)
+        class_idx = int(I[k])
+
+        if len(goods) == 0:
+            roles[class_idx] = 'inactive'
+        elif len(goods) == 1:
+            roles[class_idx] = 'specialist'
+        else:
+            roles[class_idx] = 'generalist'
+
+        goods_str = ','.join(f'g{g}' for g in sorted(goods))
+        label_parts.append(f"C{class_idx}:{{{goods_str}}}")
+
+    # Mark inactive classes
+    for i in range(m):
+        if i not in [int(x) for x in I]:
+            roles[i] = 'inactive'
+
+    # Build canonical label
+    if n_active == 0:
+        label = 'EMPTY'
+    elif n_active < m:
+        # Some classes inactive — note which are active
+        active_str = ','.join(f'C{int(i)}' for i in I)
+        label = f"[{active_str}]_" + '|'.join(label_parts)
+    else:
+        label = '|'.join(label_parts)
+
+    return {
+        'n_active_classes': n_active,
+        'n_active_goods': n_goods,
+        'active_classes': tuple(int(i) for i in I),
+        'active_goods': tuple(int(j) for j in J),
+        'pattern': tuple(pattern),
+        'roles': roles,
+        'label': label,
+    }
+
+
+def classify_zone(I, J, forest, m=None):
+    """
+    Classify a forest into a canonical structural label.
+
+    Convenience wrapper around describe_forest() that returns just the label.
+    Works for any m×n economy — no paper-specific names.
+
+    Parameters
+    ----------
+    I : array-like
+        Active class indices.
+    J : array-like
+        Active good indices.
+    forest : tuple of tuples
+        Fisher forest from extract_forest().
+    m : int or None
+        Total number of classes. If None, inferred from max(I)+1.
+
+    Returns
+    -------
+    label : str
+        Canonical structural label, e.g. "C0:{g0}|C1:{g0,g1}".
+    """
+    desc = describe_forest(I, J, forest, m=m)
+    return desc['label']
+
+
 # ======================================================================
 # CCG Payoff Functions
 # ======================================================================

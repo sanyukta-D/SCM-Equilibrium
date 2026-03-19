@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scm-equilibrium"
-version = "0.2.0"
+version = "0.4.0"
 description = "SM equilibrium computation for the Simple Closed Model (Deshpande & Sohoni, 2021)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
+viz = ["matplotlib>=3.5"]
 
 [tool.setuptools.packages.find]
 include = ["scm*"]
